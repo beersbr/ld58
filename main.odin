@@ -1,6 +1,7 @@
 package ld58
 
 import "core:fmt"
+import "core:math"
 import rl "vendor:raylib"
 
 WINDOW_WIDTH: i32 : 1280
@@ -22,6 +23,8 @@ ImageRefs: [ImageID]ImageRef = {
 SpriteID :: enum {
 	BUTTERFLY_BLUE,
 	TILE_GROUND_0,
+	TILE_GROUND_1,
+	TILE_GROUND_2,
 	// FENCE_N,
 	// FENCE_NE,
 	// FENCE_E,
@@ -127,22 +130,49 @@ Tile :: struct {
 	occupants:     [TILE_MAX_OCCUPANTS]Occupant,
 }
 
-TILES_WIDTH :: 16
-TILES_HEIGHT :: 16
-NUM_TILES :: TILES_WIDTH * TILES_HEIGHT
-
-GameData :: struct {
-	tick_rate: f32,
-	tiles_p1:  [NUM_TILES]Tile,
-	tiles_p2:  [NUM_TILES]Tile,
-}
-
 DefaultTile :: Tile {
 	ground_type   = .SOIL,
 	ground_status = .DRY,
 }
 
-InitGameData :: proc() {
+TILE_SIZE :: 32
+TILES_WIDTH :: 16
+TILES_HEIGHT :: 16
+NUM_TILES :: TILES_WIDTH * TILES_HEIGHT
+
+index_to_coord :: proc(index: i32) -> v2i {
+	return {math.floor_div(index, TILES_WIDTH), index % TILES_WIDTH}
+}
+
+coord_to_index :: proc(coord: v2i) -> i32 {
+	return coord.x + coord.y * TILES_WIDTH
+}
+
+GameData :: struct {
+	tick_rate:  f32,
+	tiles_now:  [NUM_TILES]Tile,
+	tiles_last: [NUM_TILES]Tile,
+}
+
+InitGameData :: proc(game_data: ^GameData) {
+	game_data.tick_rate = 1.0
+	for &tile in game_data.tiles_now {
+		tile = DefaultTile
+	}
+}
+
+UpdateGame :: proc(game_data: ^GameData, dt: f32) {
+
+}
+
+
+DrawGame :: proc(game_data: ^GameData) {
+	for &tile, idx in game_data.tiles_now {
+		// DrawSprite :: proc(sprite_id: SpriteID, pos: v2f, size: v2f) {
+		coord_i := index_to_coord(i32(idx))
+		coord_f := to_v2f(coord_i)
+		DrawSprite(.TILE_GROUND_0, coord_f * TILE_SIZE, {32, 32})
+	}
 }
 
 
@@ -154,6 +184,9 @@ main :: proc() {
 
 	InitData()
 
+	game_data: GameData = {}
+
+	InitGameData(&game_data)
 	frame_time: f32
 
 	for !rl.WindowShouldClose() {
@@ -163,11 +196,12 @@ main :: proc() {
 			break
 		}
 
+		UpdateGame(&game_data, frame_time)
+
 		rl.BeginDrawing()
 		{
 			rl.ClearBackground({10, 10, 26, 255})
-
-
+			DrawGame(&game_data)
 			// DrawSprite(.FENCE_NE, {200, 500}, {16, 16})
 			// DrawSprite(.FENCE_N, {184, 500}, {16, 16})
 		}

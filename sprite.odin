@@ -3,10 +3,6 @@ package ld58
 import rl "vendor:raylib"
 
 
-v2f :: [2]f32
-v2i :: [2]i32
-
-
 ImageRef :: struct {
 	path: cstring,
 	size: v2i,
