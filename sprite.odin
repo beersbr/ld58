@@ -20,7 +20,7 @@ Sprite :: struct {
 }
 
 
-DrawSprite :: proc(sprite_id: SpriteID, pos: v2f, size: v2f) {
+draw_sprite :: proc(sprite_id: SpriteID, pos: v2f, size: v2f) {
 	sprite: Sprite = Sprites[sprite_id]
 
 	rl.DrawTexturePro(
@@ -31,4 +31,8 @@ DrawSprite :: proc(sprite_id: SpriteID, pos: v2f, size: v2f) {
 		0.0,
 		rl.WHITE,
 	)
+}
+
+animate :: proc(time: ^f32, frame_count: i32, duration: f32) -> i32 {
+
 }
