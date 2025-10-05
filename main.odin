@@ -5,9 +5,6 @@ import "core:math"
 import mem "core:mem"
 import rl "vendor:raylib"
 
-WINDOW_WIDTH: i32 : 1280
-WINDOW_HEIGHT: i32 : 720
-
 
 GameData :: struct {
 	tick_rate:      f32,
@@ -23,13 +20,13 @@ GameData :: struct {
 
 GAME_UI_BUTTONS: [GameUIButtonID]UIButton = {
 	.CURSOR_BUTTON = {
-		rect = rl.Rectangle{600, 50, 100, 65},
+		rect = rl.Rectangle{730, 50, 100, 65},
 		render_info = DEBUG_BUTTON_RENDER_INFO,
 		state = .UP,
 		sprite_id = .CURSOR_UP,
 	},
 	.SEED_BUTTON_CARROT = {
-		rect = rl.Rectangle{600, 250, 100, 65},
+		rect = rl.Rectangle{730, 125, 100, 65},
 		render_info = DEBUG_BUTTON_RENDER_INFO,
 		state = .UP,
 		sprite_id = .CARROT_SEED_BAG,
@@ -72,7 +69,9 @@ TOOL_ACTIONS: [ToolID]ToolAction = {
 					growth_timer = 0,
 				},
 			)
+			// TODO(Brett): there should be a pooled list somewhere
 		}
+
 	},
 }
 
@@ -122,7 +121,6 @@ update_game :: proc(game_data: ^GameData, dt: f32) {
 		plant_data: PlantData = PLANT_DATA[plant.plant_type_id]
 		plant_stage: PlantDataStage = plant_data.stages[plant.current_stage]
 
-
 		plant.growth_timer += dt
 		if plant.growth_timer > plant_stage.growth_time &&
 		   plant.current_stage < plant_data.num_stages {
@@ -133,13 +131,10 @@ update_game :: proc(game_data: ^GameData, dt: f32) {
 				plant.current_stage += 1
 			}
 		}
-
 	}
 
 	for &occupant, idx in game_data.occupants {
 	}
-	// for &tile, idx in game_data.tiles_now {
-	// }
 
 }
 
@@ -151,7 +146,7 @@ draw_game :: proc(game_data: ^GameData) {
 		coord_i := index_to_coord(i32(idx))
 		coord_f := to_v2f(coord_i)
 
-		draw_sprite(.TILE_GROUND_0, coord_f * TILE_SIZE, {32, 32})
+		draw_sprite(.TILE_GROUND_0, coord_f * TILE_SIZE, {TILE_SIZE, TILE_SIZE})
 
 		if rl.CheckCollisionPointRec(
 			game_data.mouse_pos,
@@ -173,11 +168,10 @@ draw_game :: proc(game_data: ^GameData) {
 		plant_data: PlantData = PLANT_DATA[plant.plant_type_id]
 		plant_stage: PlantDataStage = plant_data.stages[plant.current_stage]
 
-		draw_sprite(plant_stage.sprite_id, plant.pos, {32, 32})
+		draw_sprite(plant_stage.sprite_id, plant.pos, {TILE_SIZE, TILE_SIZE})
 	}
-
 	for &occupant in game_data.occupants {
-		draw_sprite(occupant.sprite_id, occupant.pos, {32, 32})
+		draw_sprite(occupant.sprite_id, occupant.pos, {TILE_SIZE, TILE_SIZE})
 	}
 
 	for &button in GAME_UI_BUTTONS {
@@ -185,7 +179,7 @@ draw_game :: proc(game_data: ^GameData) {
 	}
 
 	current_tool: Tool = TOOLS[game_data.tool_id]
-	draw_sprite(current_tool.sprite_id, game_data.mouse_pos, {32, 32})
+	draw_sprite(current_tool.sprite_id, game_data.mouse_pos, {TILE_SIZE, TILE_SIZE})
 
 }
 

@@ -2,7 +2,10 @@ package ld58
 
 import rl "vendor:raylib"
 
-TILE_SIZE :: 32
+WINDOW_WIDTH: i32 : 1280
+WINDOW_HEIGHT: i32 : 720
+
+TILE_SIZE :: 45
 TILES_WIDTH :: 16
 TILES_HEIGHT :: 16
 NUM_TILES :: TILES_WIDTH * TILES_HEIGHT
@@ -244,12 +247,12 @@ PLANT_DATA: [PlantTypeID]PlantData = {
 		growth_rate = 1.0,
 		num_stages = 6,
 		stages = {
-			{sprite_id = .CARROT_SEED, growth_time = 2.0},
-			{sprite_id = .CARROT_1, growth_time = 2.0},
-			{sprite_id = .CARROT_2, growth_time = 2.0},
-			{sprite_id = .CARROT_3, growth_time = 2.0},
-			{sprite_id = .CARROT_4, growth_time = 2.0},
-			{sprite_id = .CARROT_5, growth_time = 2.0},
+			{sprite_id = .CARROT_SEED, growth_time = 10.0},
+			{sprite_id = .CARROT_1, growth_time = 10.0},
+			{sprite_id = .CARROT_2, growth_time = 10.0},
+			{sprite_id = .CARROT_3, growth_time = 10.0},
+			{sprite_id = .CARROT_4, growth_time = 10.0},
+			{sprite_id = .CARROT_5, growth_time = 10.0},
 		},
 	},
 }
