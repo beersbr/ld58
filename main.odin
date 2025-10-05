@@ -2,192 +2,207 @@ package ld58
 
 import "core:fmt"
 import "core:math"
+import mem "core:mem"
 import rl "vendor:raylib"
 
 WINDOW_WIDTH: i32 : 1280
 WINDOW_HEIGHT: i32 : 720
 
-ImageID :: enum {
-	FARM_ATLAS,
-	BUTTERFLY_ATLAS,
-}
-
-ImageRefs: [ImageID]ImageRef = {
-	.FARM_ATLAS = {path = "/home/brett/Downloads/farm/full version/global.png"},
-	.BUTTERFLY_ATLAS = {
-		path = "/home/brett/Downloads/Cute_Fantasy/Animals/Butterfly/Butterfly.png",
-	},
-}
-
-
-SpriteID :: enum {
-	BUTTERFLY_BLUE,
-	TILE_GROUND_0,
-	TILE_GROUND_1,
-	TILE_GROUND_2,
-	// FENCE_N,
-	// FENCE_NE,
-	// FENCE_E,
-	// FENCE_SE,
-	// FENCE_S,
-	// FENCE_SW,
-	// FENCE_W,
-	// FENCE_NW,
-}
-
-Sprites: [SpriteID]Sprite = {
-	.BUTTERFLY_BLUE = {
-		image_ref_id = .BUTTERFLY_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{0, 0, 16, 16}, {8, 16, 16, 16}},
-		num_frames = 2,
-	},
-	.TILE_GROUND_0 = {
-		image_ref_id = .FARM_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{80, 96, 16, 16}},
-		num_frames = 1,
-	},
-	.TILE_GROUND_1 = {
-		image_ref_id = .FARM_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{96, 96, 16, 16}},
-		num_frames = 1,
-	},
-	.TILE_GROUND_2 = {
-		image_ref_id = .FARM_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{112, 96, 16, 16}},
-		num_frames = 1,
-	},
-	// .FENCE_N = {
-	// 	image_ref_id = .FARM_ATLAS,
-	// 	size = {16, 16},
-	// 	current_frame = 0,
-	// 	frames = {{192, 464, 16, 16}},
-	// 	num_frames = 1,
-	// },
-	// .FENCE_NE = {
-	// 	image_ref_id = .FARM_ATLAS,
-	// 	size = {16, 16},
-	// 	current_frame = 0,
-	// 	frames = {{208, 464, 16, 16}},
-	// 	num_frames = 1,
-	// },
-}
-
-
-UIButtonID :: enum {
-	PlayButton,
-}
-
-
-UIButtons :: [UIButtonID]UIButton{}
-
-
-InitData :: proc() {
-	for &image_data in ImageRefs {
-		image_data.tex = rl.LoadTexture(image_data.path)
-		image_data.size = v2i{image_data.tex.width, image_data.tex.height}
-	}
-}
-
-
-GroundType :: enum {
-	SOIL,
-	GRASS,
-}
-
-GroundStatus :: enum {
-	DRY,
-	WET,
-}
-
-ProduceType :: enum {
-	NONE,
-}
-
-OccupantState :: enum {}
-OccupantType :: enum {}
-
-TILE_MAX_OCCUPANTS :: 4
-
-Occupant :: struct {
-	pos:   v2f,
-	vel:   v2f,
-	state: OccupantState,
-	type:  OccupantType,
-}
-
-Tile :: struct {
-	ground_type:   GroundType,
-	ground_status: GroundStatus,
-	produce:       ProduceType,
-	occupants:     [TILE_MAX_OCCUPANTS]Occupant,
-}
-
-DefaultTile :: Tile {
-	ground_type   = .SOIL,
-	ground_status = .DRY,
-}
-
-TILE_SIZE :: 32
-TILES_WIDTH :: 16
-TILES_HEIGHT :: 16
-NUM_TILES :: TILES_WIDTH * TILES_HEIGHT
-
-index_to_coord :: proc(index: i32) -> v2i {
-	return {math.floor_div(index, TILES_WIDTH), index % TILES_WIDTH}
-}
-
-coord_to_index :: proc(coord: v2i) -> i32 {
-	return coord.x + coord.y * TILES_WIDTH
-}
 
 GameData :: struct {
-	tick_rate:  f32,
-	tiles_now:  [NUM_TILES]Tile,
-	tiles_last: [NUM_TILES]Tile,
+	tick_rate:      f32,
+	tick_timer:     f32,
+	tiles_now:      [NUM_TILES]Tile,
+	tiles_last:     [NUM_TILES]Tile,
+	occupants:      [dynamic]Occupant,
+	plants:         [dynamic]Plant,
+	mouse_pos:      v2f,
+	mouse_pos_last: v2f,
+	tool_id:        ToolID,
 }
 
-InitGameData :: proc(game_data: ^GameData) {
+GAME_UI_BUTTONS: [GameUIButtonID]UIButton = {
+	.CURSOR_BUTTON = {
+		rect = rl.Rectangle{600, 50, 100, 65},
+		render_info = DEBUG_BUTTON_RENDER_INFO,
+		state = .UP,
+		sprite_id = .CURSOR_UP,
+	},
+	.SEED_BUTTON_CARROT = {
+		rect = rl.Rectangle{600, 250, 100, 65},
+		render_info = DEBUG_BUTTON_RENDER_INFO,
+		state = .UP,
+		sprite_id = .CARROT_SEED_BAG,
+	},
+}
+
+
+GAME_UI_BUTTON_ACTIONS: [GameUIButtonID]ButtonCallback = {
+	.CURSOR_BUTTON = proc(button: ^UIButton, game_data: ^GameData) {
+		game_data.tool_id = .CURSOR
+	},
+	.SEED_BUTTON_CARROT = proc(button: ^UIButton, game_data: ^GameData) {
+		game_data.tool_id = .SEED_CARROT
+
+	},
+}
+
+
+TOOL_ACTIONS: [ToolID]ToolAction = {
+	.CURSOR = proc(tool_id: ToolID, tile: ^Tile, game_data: ^GameData) {
+
+	},
+	.SEED_CARROT = proc(tool_id: ToolID, tile: ^Tile, game_data: ^GameData) {
+		tile_coord := index_to_coord(tile.index)
+
+		if tile.plant == nil {
+			append(
+				&game_data.plants,
+				Plant {
+					born_at = rl.GetTime(),
+					health = 10,
+					pos = v2f {
+						cast(f32)tile_coord.x * TILE_SIZE,
+						cast(f32)tile_coord.y * TILE_SIZE,
+					},
+					vel = v2f{},
+					tile_index = tile.index,
+					plant_type_id = .CARROT,
+					current_stage = 0,
+					growth_timer = 0,
+				},
+			)
+		}
+	},
+}
+
+
+game_data_init :: proc(game_data: ^GameData) {
+	game_data.occupants = make([dynamic]Occupant, 0, NUM_TILES * 8)
+	game_data.plants = make([dynamic]Plant, 0, NUM_TILES)
+
 	game_data.tick_rate = 1.0
-	for &tile in game_data.tiles_now {
-		tile = DefaultTile
+	game_data.tool_id = .CURSOR
+
+	for &tile, idx in game_data.tiles_now {
+		tile = DEFAULT_TILE
+		tile.index = cast(i32)idx
 	}
 }
 
-UpdateGame :: proc(game_data: ^GameData, dt: f32) {
+
+update_game :: proc(game_data: ^GameData, dt: f32) {
+	mouse_pos: v2f = rl.GetMousePosition()
+
+	game_data.mouse_pos_last = game_data.mouse_pos
+	game_data.mouse_pos = rl.GetMousePosition()
+
+	for button_id, idx in GameUIButtonID {
+		button: ^UIButton = &GAME_UI_BUTTONS[button_id]
+		update_button(button)
+		if button.pressed {
+			GAME_UI_BUTTON_ACTIONS[button_id](button, game_data)
+		}
+	}
+
+	if rl.CheckCollisionPointRec(
+		mouse_pos,
+		rl.Rectangle{0, 0, TILE_SIZE * TILES_WIDTH, TILE_SIZE * TILES_HEIGHT},
+	) {
+		if rl.IsMouseButtonPressed(.LEFT) {
+			tile_coord := v2i_to_coord(to_v2i(mouse_pos))
+			tile_index := coord_to_index(tile_coord)
+			tile := game_data.tiles_now[tile_index]
+
+			TOOL_ACTIONS[game_data.tool_id](game_data.tool_id, &tile, game_data)
+		}
+	}
+
+	for &plant, idx in game_data.plants {
+		plant_data: PlantData = PLANT_DATA[plant.plant_type_id]
+		plant_stage: PlantDataStage = plant_data.stages[plant.current_stage]
+
+
+		plant.growth_timer += dt
+		if plant.growth_timer > plant_stage.growth_time &&
+		   plant.current_stage < plant_data.num_stages {
+
+			plant.growth_timer = plant.growth_timer - plant_stage.growth_time
+
+			if plant.current_stage + 1 < plant_data.num_stages {
+				plant.current_stage += 1
+			}
+		}
+
+	}
+
+	for &occupant, idx in game_data.occupants {
+	}
+	// for &tile, idx in game_data.tiles_now {
+	// }
 
 }
 
 
-DrawGame :: proc(game_data: ^GameData) {
+draw_game :: proc(game_data: ^GameData) {
+
 	for &tile, idx in game_data.tiles_now {
 		// DrawSprite :: proc(sprite_id: SpriteID, pos: v2f, size: v2f) {
 		coord_i := index_to_coord(i32(idx))
 		coord_f := to_v2f(coord_i)
-		DrawSprite(.TILE_GROUND_0, coord_f * TILE_SIZE, {32, 32})
+
+		draw_sprite(.TILE_GROUND_0, coord_f * TILE_SIZE, {32, 32})
+
+		if rl.CheckCollisionPointRec(
+			game_data.mouse_pos,
+			rl.Rectangle{coord_f.x * TILE_SIZE, coord_f.y * TILE_SIZE, TILE_SIZE, TILE_SIZE},
+		) {
+			if game_data.tool_id != .CURSOR {
+				rl.DrawRectangle(
+					coord_i.x * TILE_SIZE,
+					coord_i.y * TILE_SIZE,
+					TILE_SIZE,
+					TILE_SIZE,
+					rl.Color{128, 128, 128, 128},
+				)
+			}
+		}
 	}
+
+	for &plant in game_data.plants {
+		plant_data: PlantData = PLANT_DATA[plant.plant_type_id]
+		plant_stage: PlantDataStage = plant_data.stages[plant.current_stage]
+
+		draw_sprite(plant_stage.sprite_id, plant.pos, {32, 32})
+	}
+
+	for &occupant in game_data.occupants {
+		draw_sprite(occupant.sprite_id, occupant.pos, {32, 32})
+	}
+
+	for &button in GAME_UI_BUTTONS {
+		draw_button(&button)
+	}
+
+	current_tool: Tool = TOOLS[game_data.tool_id]
+	draw_sprite(current_tool.sprite_id, game_data.mouse_pos, {32, 32})
+
 }
 
-
 main :: proc() {
-	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Asteroids")
+	rl.InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "LD - 58")
 	defer rl.CloseWindow()
 
 	rl.SetTargetFPS(60)
 
-	InitData()
+	init_resources()
 
 	game_data: GameData = {}
 
-	InitGameData(&game_data)
+	game_data_init(&game_data)
 	frame_time: f32
+
+	rl.HideCursor()
 
 	for !rl.WindowShouldClose() {
 		frame_time := rl.GetFrameTime()
@@ -196,14 +211,12 @@ main :: proc() {
 			break
 		}
 
-		UpdateGame(&game_data, frame_time)
+		update_game(&game_data, frame_time)
 
 		rl.BeginDrawing()
 		{
 			rl.ClearBackground({10, 10, 26, 255})
-			DrawGame(&game_data)
-			// DrawSprite(.FENCE_NE, {200, 500}, {16, 16})
-			// DrawSprite(.FENCE_N, {184, 500}, {16, 16})
+			draw_game(&game_data)
 		}
 		rl.EndDrawing()
 	}
