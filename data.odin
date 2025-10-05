@@ -1,5 +1,8 @@
+#+feature dynamic-literals
+
 package ld58
 
+import "core:fmt"
 import rl "vendor:raylib"
 
 WINDOW_WIDTH: i32 : 1280
@@ -13,72 +16,20 @@ TILE_MAX_OCCUPANTS :: 4
 
 MAX_PLANT_STAGES :: 6
 
+PlantEvalDataWrapper :: union {
+	bool,
+	PlantEvalData,
+}
+
+NbrMap :: [NbrDir]PlantEvalDataWrapper
+
 // ----------------------------------------------
 
-ToolAction :: proc(tool_id: ToolID, tile: ^Tile, game_data: ^GameData)
+ToolAction :: proc(tool_id: ToolID, tile_index: i32, game_data: ^GameData)
 ButtonCallback :: proc(button: ^UIButton, game_data: ^GameData)
 
-// ----------------------------------------------
-
-ImageID :: enum {
-	FARM_ATLAS,
-	CURSOR_ATLAS,
-}
-
-
-SpriteID :: enum {
-	TILE_GROUND_0,
-	TILE_GROUND_1,
-	TILE_GROUND_2,
-	CURSOR_UP,
-	SEED_1,
-	CARROT_SEED_BAG,
-	CARROT_SEED,
-	CARROT_1,
-	CARROT_2,
-	CARROT_3,
-	CARROT_4,
-	CARROT_5,
-}
-
-GameUIButtonID :: enum {
-	CURSOR_BUTTON,
-	SEED_BUTTON_CARROT,
-}
-
-GroundType :: enum {
-	SOIL,
-	GRASS,
-}
-
-GroundStatus :: enum {
-	DRY,
-	WET,
-}
-
-ToolID :: enum {
-	CURSOR,
-	SEED_CARROT,
-}
-
-PlantTypeID :: enum {
-	CARROT,
-	// TOMATO,
-	// STRAWBERRY,
-	// PUMPKIN,
-	// CORN,
-	// WATER_MELLON,
-	// RADISH,
-	// POTATO,
-	// LETTUCE,
-	// SUGAR_CANE,
-	// EGG_PLANT,
-	// ROSE,
-}
-
-OccupantType :: enum {
-	BUG,
-}
+// TODO: fix the plant reference.. just use an ID please
+PlantEvalProc :: proc(tile: ^Tile, nbr_map: NbrMap, game_data: ^GameData)
 
 // ----------------------------------------------
 
@@ -126,7 +77,116 @@ Tile :: struct {
 	occupants:     [10]^Occupant,
 	num_occupants: u32,
 }
+
+GameData :: struct {
+	tick_rate:      f32,
+	tick_timer:     f32,
+	tiles_now:      [NUM_TILES]Tile,
+	tiles_last:     [NUM_TILES]Tile,
+	occupants:      [dynamic]Occupant,
+	plant_pool:     Pool(Plant),
+	mouse_pos:      v2f,
+	mouse_pos_last: v2f,
+	tool_id:        ToolID,
+}
+
+PlantEvalData :: struct {
+	// nbr_dir:       NbrDir,
+	plant_type_id: PlantTypeID,
+	current_stage: i32,
+	// tile_index:    i32,
+}
+
+// ----------------------------------------------
+NbrDir :: enum {
+	NW,
+	N,
+	NE,
+	E,
+	SE,
+	S,
+	SW,
+	W,
+}
+
+
+ImageID :: enum {
+	FARM_ATLAS,
+	CURSOR_ATLAS,
+}
+
+
+SpriteID :: enum {
+	TILE_GROUND_0,
+	TILE_GROUND_1,
+	TILE_GROUND_2,
+	CURSOR_UP,
+	SEED_1,
+	CARROT_SEED_BAG,
+	CARROT_SEED,
+	CARROT_1,
+	CARROT_2,
+	CARROT_3,
+	CARROT_4,
+	CARROT_5,
+}
+
+GameUIButtonID :: enum {
+	CURSOR_BUTTON,
+	SEED_BUTTON_CARROT,
+}
+
+GroundType :: enum {
+	SOIL,
+	GRASS,
+}
+
+GroundStatus :: enum {
+	DRY,
+	WETs,
+}
+
+ToolID :: enum {
+	CURSOR,
+	SEED_CARROT,
+}
+
+PlantTypeID :: enum {
+	NONE,
+	CARROT,
+	// TOMATO,
+	// STRAWBERRY,
+	// PUMPKIN,
+	// CORN,
+	// WATER_MELLON,
+	// RADISH,
+	// POTATO,
+	// LETTUCE,
+	// SUGAR_CANE,
+	// EGG_PLANT,
+	// ROSE,
+}
+
+OccupantType :: enum {
+	BUG,
+}
+
 // --------------------------------------------
+
+
+// --------------------------------------------
+
+NBR_MAP: [NbrDir]v2i = {
+	.NW = {-1, -1},
+	.N  = {0, -1},
+	.NE = {1, -1},
+	.E  = {1, 0},
+	.SE = {1, 1},
+	.S  = {0, 1},
+	.SW = {-1, 1},
+	.W  = {-1, 0},
+}
+
 
 IMAGE_REFS: [ImageID]ImageRef = {
 	.FARM_ATLAS = {path = "./resources/cozy_farm_global.png"},
@@ -243,6 +303,7 @@ DEBUG_BUTTON_RENDER_INFO: UIButtonRenderColor = {
 
 
 PLANT_DATA: [PlantTypeID]PlantData = {
+	.NONE = {},
 	.CARROT = {
 		growth_rate = 1.0,
 		num_stages = 6,
@@ -254,5 +315,43 @@ PLANT_DATA: [PlantTypeID]PlantData = {
 			{sprite_id = .CARROT_4, growth_time = 10.0},
 			{sprite_id = .CARROT_5, growth_time = 10.0},
 		},
+	},
+}
+
+TILE_NBR_EVAL_FN: map[NbrMap]PlantEvalProc = {
+	{
+		.N = PlantEvalData{.CARROT, 6},
+		.NE = false,
+		.E = false,
+		.SE = false,
+		.S = false,
+		.SW = false,
+		.W = false,
+		.NW = false,
+	} = proc(tile: ^Tile, nbr_map: NbrMap, game_data: ^GameData) {
+
+		if tile.plant == nil {
+			ok, plant := pool_acquire(&game_data.plant_pool)
+
+			tile_coord: v2i = index_to_coord(tile.index)
+
+			if !ok {
+				plant^ = Plant {
+					born_at       = rl.GetTime(),
+					health        = 10,
+					pos           = v2f {
+						cast(f32)tile_coord.x * TILE_SIZE,
+						cast(f32)tile_coord.y * TILE_SIZE,
+					},
+					vel           = v2f{},
+					tile_index    = tile.index,
+					plant_type_id = .CARROT,
+					current_stage = 0,
+					growth_timer  = 0,
+				}
+			}
+		}
+
+
 	},
 }
