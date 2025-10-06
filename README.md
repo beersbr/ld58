@@ -1,5 +1,7 @@
 ## LD 58
 
+![image](./cover.png)
+
 _Theme_: Collector
 _Where_: https://ldjam.com/events/ludum-dare/58
 
