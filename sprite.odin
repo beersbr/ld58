@@ -52,6 +52,7 @@ SpriteID :: enum {
 	TOMATO_5,
 }
 
+
 IMAGE_REFS: [ImageID]ImageRef = {
 	.FARM_ATLAS = {path = "./resources/cozy_farm_global.png"},
 	.CURSOR_ATLAS = {path = "./resources/_fullset_cursors.png"},

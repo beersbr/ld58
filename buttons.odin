@@ -24,7 +24,7 @@ GAME_UI_BUTTONS: [GameUIButtonID]UIButton = {
 		rect = rl.Rectangle{750, 50, 100, 65},
 		render_info = DEBUG_BUTTON_RENDER_INFO,
 		state = .UP,
-		sprite_id = .CURSOR_UP,
+		sprite_id = .CURSOR_COLOR_UP,
 	},
 	.HARVEST_BUTTON = {
 		rect = rl.Rectangle{860, 50, 100, 65},
