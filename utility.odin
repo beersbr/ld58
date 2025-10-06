@@ -9,7 +9,7 @@ index_to_coord :: proc(index: i32) -> v2i {
 }
 
 coord_to_index :: proc(coord: v2i) -> i32 {
-	return coord.x + coord.y * TILES_WIDTH
+	return coord.x + (coord.y * TILES_WIDTH)
 }
 
 

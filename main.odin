@@ -7,66 +7,6 @@ import mem "core:mem"
 import rl "vendor:raylib"
 
 
-GAME_UI_BUTTONS: [GameUIButtonID]UIButton = {
-	.CURSOR_BUTTON = {
-		rect = rl.Rectangle{730, 50, 100, 65},
-		render_info = DEBUG_BUTTON_RENDER_INFO,
-		state = .UP,
-		sprite_id = .CURSOR_UP,
-	},
-	.SEED_BUTTON_CARROT = {
-		rect = rl.Rectangle{730, 125, 100, 65},
-		render_info = DEBUG_BUTTON_RENDER_INFO,
-		state = .UP,
-		sprite_id = .CARROT_SEED_BAG,
-	},
-}
-
-
-GAME_UI_BUTTON_ACTIONS: [GameUIButtonID]ButtonCallback = {
-	.CURSOR_BUTTON = proc(button: ^UIButton, game_data: ^GameData) {
-		game_data.tool_id = .CURSOR
-	},
-	.SEED_BUTTON_CARROT = proc(button: ^UIButton, game_data: ^GameData) {
-		game_data.tool_id = .SEED_CARROT
-
-	},
-}
-
-
-TOOL_ACTIONS: [ToolID]ToolAction = {
-	.CURSOR = proc(tool_id: ToolID, tile_index: i32, game_data: ^GameData) {
-
-	},
-	.SEED_CARROT = proc(tool_id: ToolID, tile_index: i32, game_data: ^GameData) {
-
-		tile: ^Tile = &game_data.tiles_now[tile_index]
-		tile_coord := index_to_coord(tile_index)
-
-		if tile.plant == nil {
-			ok, plant := pool_acquire(&game_data.plant_pool)
-
-
-			if ok {
-				plant^ = Plant {
-					born_at       = rl.GetTime(),
-					health        = 10,
-					pos           = v2f {
-						cast(f32)tile_coord.x * TILE_SIZE,
-						cast(f32)tile_coord.y * TILE_SIZE,
-					},
-					vel           = v2f{},
-					tile_index    = tile.index,
-					plant_type_id = .CARROT,
-					current_stage = 0,
-					growth_timer  = 0,
-				}
-				tile.plant = plant
-			}
-		}
-	},
-}
-
 tiles_copy :: proc(tiles_src: []Tile, tiles_dst: []Tile, size: u32) {
 	// DOING ZERO validation -- they must be the same size
 
@@ -86,7 +26,9 @@ game_data_init :: proc(game_data: ^GameData) {
 	game_data.occupants = make([dynamic]Occupant, 0, NUM_TILES * 8)
 	pool_init(&game_data.plant_pool, cast(u32)NUM_TILES)
 
-	game_data.tick_rate = 1.0
+	game_data.total_ticks = 0
+	game_data.tick_rate = 2
+	game_data.tick_time = 1.0 / game_data.tick_rate
 	game_data.tool_id = .CURSOR
 
 	tiles_clear(game_data.tiles_now[:])
@@ -97,8 +39,10 @@ game_data_init :: proc(game_data: ^GameData) {
 game_update :: proc(game_data: ^GameData, dt: f32) {
 	mouse_pos: v2f = rl.GetMousePosition()
 
+	game_data.did_tick = false
 	game_data.mouse_pos_last = game_data.mouse_pos
 	game_data.mouse_pos = rl.GetMousePosition()
+
 
 	for button_id, idx in GameUIButtonID {
 		button: ^UIButton = &GAME_UI_BUTTONS[button_id]
@@ -108,66 +52,75 @@ game_update :: proc(game_data: ^GameData, dt: f32) {
 		}
 	}
 
-	for index in 0 ..< queue.len(game_data.plant_pool.used_list) {
-		plant: ^Plant = pool_get_at(&game_data.plant_pool, cast(u32)index)
-		plant_data: PlantData = PLANT_DATA[plant.plant_type_id]
-		plant_stage: PlantDataStage = plant_data.stages[plant.current_stage]
+	game_data.tick_timer += dt
+	for game_data.tick_timer >= game_data.tick_time {
+		game_data.tick_timer = game_data.tick_timer - game_data.tick_time
+		game_data.did_tick = true
+		game_data.total_ticks += 1
 
-		plant.growth_timer += dt
-		did_change_stage := false
+		for index in 0 ..< queue.len(game_data.plant_pool.used_list) {
+			plant: ^Plant = pool_get_at(&game_data.plant_pool, cast(u32)index)
+			plant_data: PlantData = PLANT_DATA[plant.plant_type_id]
+			plant_stage: PlantDataStage = plant_data.stages[plant.current_stage]
 
-		if plant.growth_timer > plant_stage.growth_time &&
-		   plant.current_stage < plant_data.num_stages {
+			plant.growth_ticks += 1
+			did_change_stage := false
 
-			plant.growth_timer = plant.growth_timer - plant_stage.growth_time
+			if plant.growth_ticks > plant_stage.growth_ticks &&
+			   plant.current_stage < plant_data.num_stages {
 
-			if plant.current_stage + 1 < plant_data.num_stages {
-				plant.current_stage += 1
-			}
-		}
-	}
+				plant.growth_ticks = 0
 
-
-	for &occupant, idx in game_data.occupants {
-	}
-
-
-	// tiles_copy(game_data.tiles_now[:], game_data.tiles_last[:], NUM_TILES)
-	// tiles_clear(game_data.tiles_now[:])
-
-	for &tile in game_data.tiles_last {
-		nbr_map: NbrMap = {}
-
-		current_coord := index_to_coord(tile.index)
-
-		for nbr in NbrDir {
-
-			nbr_coord_relative := NBR_MAP[nbr]
-			new_coord := current_coord + nbr_coord_relative
-
-			is_valid_coord: bool =
-				new_coord.x > 0 &&
-				new_coord.y > 0 &&
-				new_coord.x < TILES_WIDTH &&
-				new_coord.y < TILES_HEIGHT
-
-			if !is_valid_coord {continue}
-
-			tile_idx := coord_to_index(new_coord)
-			tile := game_data.tiles_last[tile_idx]
-
-			if tile.plant == nil {
-				nbr_map[nbr] = false
-			} else {
-				nbr_map[nbr] = PlantEvalData {
-					plant_type_id = tile.plant.plant_type_id,
-					current_stage = tile.plant.current_stage,
+				if plant.current_stage + 1 < plant_data.num_stages {
+					plant.current_stage += 1
 				}
 			}
 		}
 
-		if nbr_map in TILE_NBR_EVAL_FN {
-			TILE_NBR_EVAL_FN[nbr_map](&tile, nbr_map, game_data)
+		for &occupant, idx in game_data.occupants {
+		}
+
+		tiles_copy(game_data.tiles_now[:], game_data.tiles_last[:], NUM_TILES)
+		// tiles_clear(game_data.tiles_now[:])
+
+		for &tile, tile_iter_idx in game_data.tiles_last {
+			nbr_map: NbrMap = {}
+
+			current_coord := index_to_coord(tile.index)
+
+			for nbr in NbrDir {
+
+				nbr_coord_relative := NBR_MAP[nbr]
+				new_coord := current_coord + nbr_coord_relative
+
+				is_valid_coord: bool =
+					new_coord.x >= 0 &&
+					new_coord.y >= 0 &&
+					new_coord.x < TILES_WIDTH &&
+					new_coord.y < TILES_HEIGHT
+
+				if !is_valid_coord {
+					nbr_map[nbr] = false
+					continue
+				}
+
+				tile_idx := coord_to_index(new_coord)
+				nbr_tile := game_data.tiles_last[tile_idx]
+
+				if nbr_tile.plant == nil {
+					nbr_map[nbr] = false
+				} else {
+					nbr_map[nbr] = PlantEvalData {
+						plant_type_id = nbr_tile.plant.plant_type_id,
+						current_stage = nbr_tile.plant.current_stage,
+					}
+				}
+			}
+
+			if nbr_map in TILE_NBR_EVAL_FN {
+
+				TILE_NBR_EVAL_FN[nbr_map](&game_data.tiles_now[tile_iter_idx], nbr_map, game_data)
+			}
 		}
 	}
 
@@ -183,13 +136,12 @@ game_update :: proc(game_data: ^GameData, dt: f32) {
 			TOOL_ACTIONS[game_data.tool_id](game_data.tool_id, tile_index, game_data)
 		}
 	}
-
-
 }
 
 
 game_draw :: proc(game_data: ^GameData) {
 
+	draw_sprite(.BACKGROUND_RIGHT, {720, 0}, {560, 720})
 	for &tile, idx in game_data.tiles_now {
 		coord_i := index_to_coord(i32(idx))
 		coord_f := to_v2f(coord_i)
@@ -210,6 +162,22 @@ game_draw :: proc(game_data: ^GameData) {
 				)
 			}
 		}
+
+		// rl.DrawText(
+		// 	rl.TextFormat("%d", tile.index),
+		// 	coord_i.x * TILE_SIZE,
+		// 	coord_i.y * TILE_SIZE,
+		// 	10,
+		// 	rl.BLACK,
+		// )
+		// rl.DrawText(
+		// 	rl.TextFormat("%d,%d", coord_i.x, coord_i.y),
+		// 	coord_i.x * TILE_SIZE,
+		// 	coord_i.y * TILE_SIZE + 12,
+		// 	10,
+		// 	rl.BLACK,
+		// )
+
 	}
 
 	for index in 0 ..< queue.len(game_data.plant_pool.used_list) {
@@ -231,6 +199,9 @@ game_draw :: proc(game_data: ^GameData) {
 
 	current_tool: Tool = TOOLS[game_data.tool_id]
 	draw_sprite(current_tool.sprite_id, game_data.mouse_pos, {TILE_SIZE, TILE_SIZE})
+
+	rl.DrawText(rl.TextFormat("%f", game_data.tick_timer), 30, 30, 20, rl.BLACK)
+	rl.DrawText(rl.TextFormat("%d", game_data.total_ticks), 30, 70, 20, rl.BLACK)
 }
 
 

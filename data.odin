@@ -32,10 +32,10 @@ ButtonCallback :: proc(button: ^UIButton, game_data: ^GameData)
 PlantEvalProc :: proc(tile: ^Tile, nbr_map: NbrMap, game_data: ^GameData)
 
 // ----------------------------------------------
-
 Tool :: struct {
 	sprite_id: SpriteID,
 }
+
 
 BaseEntity :: struct {
 	born_at:    f64,
@@ -52,8 +52,8 @@ Occupant :: struct {
 }
 
 PlantDataStage :: struct {
-	sprite_id:   SpriteID,
-	growth_time: f32,
+	sprite_id:    SpriteID,
+	growth_ticks: i32,
 }
 
 PlantData :: struct {
@@ -66,7 +66,7 @@ Plant :: struct {
 	using entity:  BaseEntity,
 	current_stage: i32,
 	plant_type_id: PlantTypeID,
-	growth_timer:  f32,
+	growth_ticks:  i32,
 }
 
 Tile :: struct {
@@ -79,8 +79,11 @@ Tile :: struct {
 }
 
 GameData :: struct {
+	did_tick:       bool,
 	tick_rate:      f32,
 	tick_timer:     f32,
+	tick_time:      f32,
+	total_ticks:    i32,
 	tiles_now:      [NUM_TILES]Tile,
 	tiles_last:     [NUM_TILES]Tile,
 	occupants:      [dynamic]Occupant,
@@ -110,32 +113,6 @@ NbrDir :: enum {
 }
 
 
-ImageID :: enum {
-	FARM_ATLAS,
-	CURSOR_ATLAS,
-}
-
-
-SpriteID :: enum {
-	TILE_GROUND_0,
-	TILE_GROUND_1,
-	TILE_GROUND_2,
-	CURSOR_UP,
-	SEED_1,
-	CARROT_SEED_BAG,
-	CARROT_SEED,
-	CARROT_1,
-	CARROT_2,
-	CARROT_3,
-	CARROT_4,
-	CARROT_5,
-}
-
-GameUIButtonID :: enum {
-	CURSOR_BUTTON,
-	SEED_BUTTON_CARROT,
-}
-
 GroundType :: enum {
 	SOIL,
 	GRASS,
@@ -146,15 +123,9 @@ GroundStatus :: enum {
 	WETs,
 }
 
-ToolID :: enum {
-	CURSOR,
-	SEED_CARROT,
-}
-
 PlantTypeID :: enum {
-	NONE,
 	CARROT,
-	// TOMATO,
+	TOMATO,
 	// STRAWBERRY,
 	// PUMPKIN,
 	// CORN,
@@ -188,139 +159,42 @@ NBR_MAP: [NbrDir]v2i = {
 }
 
 
-IMAGE_REFS: [ImageID]ImageRef = {
-	.FARM_ATLAS = {path = "./resources/cozy_farm_global.png"},
-	.CURSOR_ATLAS = {path = "./resources/_fullset_cursors.png"},
-}
-
-
-SPRITES: [SpriteID]Sprite = {
-	.TILE_GROUND_0 = {
-		image_ref_id = .FARM_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{80, 96, 16, 16}},
-		num_frames = 1,
-	},
-	.TILE_GROUND_1 = {
-		image_ref_id = .FARM_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{96, 96, 16, 16}},
-		num_frames = 1,
-	},
-	.TILE_GROUND_2 = {
-		image_ref_id = .FARM_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{112, 96, 16, 16}},
-		num_frames = 1,
-	},
-	.CURSOR_UP = {
-		image_ref_id = .CURSOR_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{16, 32, 16, 15}},
-		num_frames = 1,
-	},
-	.SEED_1 = {
-		image_ref_id = .FARM_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{256, 544, 16, 16}},
-		num_frames = 1,
-	},
-	.CARROT_SEED_BAG = {
-		image_ref_id = .FARM_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{240, 544, 16, 16}},
-		num_frames = 1,
-	},
-	.CARROT_SEED = {
-		image_ref_id = .FARM_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{256, 544, 16, 16}},
-		num_frames = 1,
-	},
-	.CARROT_1 = {
-		image_ref_id = .FARM_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{272, 544, 16, 16}},
-		num_frames = 1,
-	},
-	.CARROT_2 = {
-		image_ref_id = .FARM_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{288, 544, 16, 16}},
-		num_frames = 1,
-	},
-	.CARROT_3 = {
-		image_ref_id = .FARM_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{304, 544, 16, 16}},
-		num_frames = 1,
-	},
-	.CARROT_4 = {
-		image_ref_id = .FARM_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{320, 544, 16, 16}},
-		num_frames = 1,
-	},
-	.CARROT_5 = {
-		image_ref_id = .FARM_ATLAS,
-		size = {16, 16},
-		current_frame = 0,
-		frames = {{336, 544, 16, 16}},
-		num_frames = 1,
-	},
-}
-
-
 DEFAULT_TILE :: Tile {
 	ground_type   = .SOIL,
 	ground_status = .DRY,
 }
 
 
-TOOLS: [ToolID]Tool = {
-	.CURSOR = {sprite_id = .CURSOR_UP},
-	.SEED_CARROT = {sprite_id = .SEED_1},
-}
-
-
-DEBUG_BUTTON_RENDER_INFO: UIButtonRenderColor = {
-	.UP           = rl.Color{170, 170, 170, 255},
-	.HOVER        = rl.Color{128, 128, 128, 255},
-	.DOWN_INSIDE  = rl.Color{50, 50, 50, 255},
-	.DOWN_OUTSIDE = rl.Color{128, 0, 128, 255},
-}
-
-
 PLANT_DATA: [PlantTypeID]PlantData = {
-	.NONE = {},
 	.CARROT = {
 		growth_rate = 1.0,
 		num_stages = 6,
 		stages = {
-			{sprite_id = .CARROT_SEED, growth_time = 10.0},
-			{sprite_id = .CARROT_1, growth_time = 10.0},
-			{sprite_id = .CARROT_2, growth_time = 10.0},
-			{sprite_id = .CARROT_3, growth_time = 10.0},
-			{sprite_id = .CARROT_4, growth_time = 10.0},
-			{sprite_id = .CARROT_5, growth_time = 10.0},
+			{sprite_id = .CARROT_SEED, growth_ticks = 5},
+			{sprite_id = .CARROT_1, growth_ticks = 5},
+			{sprite_id = .CARROT_2, growth_ticks = 5},
+			{sprite_id = .CARROT_3, growth_ticks = 5},
+			{sprite_id = .CARROT_4, growth_ticks = 5},
+			{sprite_id = .CARROT_5, growth_ticks = 5},
+		},
+	},
+	.TOMATO = {
+		growth_rate = 1,
+		num_stages = 6,
+		stages = {
+			{sprite_id = .TOMATO_SEED, growth_ticks = 2},
+			{sprite_id = .TOMATO_1, growth_ticks = 4},
+			{sprite_id = .TOMATO_2, growth_ticks = 4},
+			{sprite_id = .TOMATO_3, growth_ticks = 10},
+			{sprite_id = .TOMATO_4, growth_ticks = 10},
+			{sprite_id = .TOMATO_5, growth_ticks = 10},
 		},
 	},
 }
 
 TILE_NBR_EVAL_FN: map[NbrMap]PlantEvalProc = {
 	{
-		.N = PlantEvalData{.CARROT, 6},
+		.N = PlantEvalData{.CARROT, 1},
 		.NE = false,
 		.E = false,
 		.SE = false,
@@ -335,7 +209,7 @@ TILE_NBR_EVAL_FN: map[NbrMap]PlantEvalProc = {
 
 			tile_coord: v2i = index_to_coord(tile.index)
 
-			if !ok {
+			if ok {
 				plant^ = Plant {
 					born_at       = rl.GetTime(),
 					health        = 10,
@@ -347,11 +221,44 @@ TILE_NBR_EVAL_FN: map[NbrMap]PlantEvalProc = {
 					tile_index    = tile.index,
 					plant_type_id = .CARROT,
 					current_stage = 0,
-					growth_timer  = 0,
+					growth_ticks  = 0,
 				}
+				tile.plant = plant
 			}
 		}
+	},
+	{
+		.N = PlantEvalData{.CARROT, 3},
+		.NE = false,
+		.E = PlantEvalData{.CARROT, 3},
+		.SE = false,
+		.S = PlantEvalData{.CARROT, 3},
+		.SW = false,
+		.W = PlantEvalData{.CARROT, 3},
+		.NW = false,
+	} = proc(tile: ^Tile, nbr_map: NbrMap, game_data: ^GameData) {
 
+		if tile.plant == nil {
+			ok, plant := pool_acquire(&game_data.plant_pool)
 
+			tile_coord: v2i = index_to_coord(tile.index)
+
+			if ok {
+				plant^ = Plant {
+					born_at       = rl.GetTime(),
+					health        = 10,
+					pos           = v2f {
+						cast(f32)tile_coord.x * TILE_SIZE,
+						cast(f32)tile_coord.y * TILE_SIZE,
+					},
+					vel           = v2f{},
+					tile_index    = tile.index,
+					plant_type_id = .TOMATO,
+					current_stage = 0,
+					growth_ticks  = 0,
+				}
+				tile.plant = plant
+			}
+		}
 	},
 }

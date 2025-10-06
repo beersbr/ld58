@@ -25,11 +25,15 @@ UIButton :: struct {
 	state:       ButtonState,
 	pressed:     bool,
 	sprite_id:   SpriteID,
+	hidden:      bool,
 }
 
 update_button :: proc(button: ^UIButton) {
 	@(static) active_button: ^UIButton
 
+	if button.hidden == true {
+		return
+	}
 	button.pressed = false
 
 	mouse_pos: v2f = rl.GetMousePosition()
@@ -93,6 +97,10 @@ update_button :: proc(button: ^UIButton) {
 }
 
 draw_button :: proc(button: ^UIButton) {
+
+	if button.hidden == true {
+		return
+	}
 
 	switch render_info in button.render_info {
 	case UIButtonRenderColor:
