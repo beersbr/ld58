@@ -56,7 +56,8 @@ game_update :: proc(game_data: ^GameData, dt: f32) {
 		game_data.did_tick = true
 		game_data.total_ticks += 1
 
-		for index in 0 ..< queue.len(game_data.plant_pool.used_list) {
+		// for index in 0 ..< queue.len(game_data.plant_pool.used_list) {
+		for index in 0 ..< len(game_data.plant_pool.used_list) {
 			plant: ^Plant = pool_get_at(&game_data.plant_pool, cast(u32)index)
 			plant_data: PlantData = PLANT_DATA[plant.plant_type_id]
 			plant_stage: PlantDataStage = plant_data.stages[plant.current_stage]
@@ -172,8 +173,10 @@ game_draw :: proc(game_data: ^GameData) {
 		}
 	}
 
-	for index in 0 ..< queue.len(game_data.plant_pool.used_list) {
+	// for index in 0 ..< queue.len(game_data.plant_pool.used_list) {
+	for index in 0 ..< len(game_data.plant_pool.used_list) {
 		plant: ^Plant = pool_get_at(&game_data.plant_pool, cast(u32)index)
+
 		plant_data: PlantData = PLANT_DATA[plant.plant_type_id]
 		plant_stage: PlantDataStage = plant_data.stages[plant.current_stage]
 

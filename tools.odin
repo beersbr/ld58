@@ -22,24 +22,11 @@ TOOL_ACTIONS: [ToolID]ToolAction = {
 		tile_coord := index_to_coord(tile_index)
 
 		if tile.plant == nil {
-			ok, plant := pool_acquire(&game_data.plant_pool)
-			if ok {
-				plant^ = Plant {
-					born_at       = rl.GetTime(),
-					health        = 10,
-					pos           = v2f {
-						cast(f32)tile_coord.x * TILE_SIZE,
-						cast(f32)tile_coord.y * TILE_SIZE,
-					},
-					vel           = v2f{},
-					tile_index    = tile.index,
-					plant_type_id = .CARROT,
-					current_stage = 0,
-					growth_ticks  = 0,
-				}
-				tile.plant = plant
-			}
+			return
 		}
+
+		pool_release(&game_data.plant_pool, tile.plant)
+		tile.plant = nil
 	},
 	.CURSOR = proc(tool_id: ToolID, tile_index: i32, game_data: ^GameData) {
 		tile: ^Tile = &game_data.tiles_now[tile_index]
@@ -56,7 +43,6 @@ TOOL_ACTIONS: [ToolID]ToolAction = {
 		}
 	},
 	.SEED_CARROT = proc(tool_id: ToolID, tile_index: i32, game_data: ^GameData) {
-
 		tile: ^Tile = &game_data.tiles_now[tile_index]
 		tile_coord := index_to_coord(tile_index)
 
