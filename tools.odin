@@ -25,6 +25,17 @@ TOOL_ACTIONS: [ToolID]ToolAction = {
 			return
 		}
 
+		ok, doodad := pool_acquire(&game_data.doodads_pool)
+		assert(ok, "Could not acquire doodad")
+
+		plant_data := PLANT_DATA[tile.plant.plant_type_id]
+		// stage: PlantDataStage = plant_data.stages[tile.plant.current_stage]
+		// doodad.sprite_id = stage.sprite_id
+
+		// anim1: ^Animation = anim_new()
+		// anim1.target = doodad.pos.x
+		// anim2: ^Animation = anim_new()
+
 		pool_release(&game_data.plant_pool, tile.plant)
 		tile.plant = nil
 	},

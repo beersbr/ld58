@@ -82,6 +82,8 @@ EASING_FUNCTIONS: [EasingFunctionID]EasingFunction = {
 AnimationTarget :: union {
 	^f32,
 	f32,
+	^v2f,
+	v2f,
 }
 
 Animation :: struct {
@@ -143,6 +145,7 @@ anim_new :: proc(tag: i32 = DEFAULT_ANIMATION_SYSTEM_TAG) -> ^Animation {
 	assert(system.initialized)
 	ok, anim := pool_acquire(&system.pool)
 	anim.system_tag = tag
+
 	return anim
 }
 
@@ -158,12 +161,18 @@ animation_system_update :: proc(dt: f32, tag: i32 = DEFAULT_ANIMATION_SYSTEM_TAG
 	system: ^AnimationSystem = ANIMATION_SYSTEMS[tag]
 
 	ct: f32 = cast(f32)rl.GetTime()
+
 	for i in 0 ..< queue.len(system.active) {
 		anim: ^Animation = queue.get(&system.active, i)
 		t: f32 = math.clamp(ct - anim.start_time, 0, anim.duration)
 		fn: EasingFunction = EASING_FUNCTIONS[anim.fn_id]
-		anim.target.(^f32)^ = fn(t, anim.start.(f32), anim.delta.(f32), anim.duration)
 
+		#partial switch target in anim.target {
+		case ^f32:
+			anim.target.(^f32)^ = fn(t, anim.start.(f32), anim.delta.(f32), anim.duration)
+		// case ^v2f:
+		// 	anim.target.(^v2f)^ = fn(t, anim.start.(v2f), anim.delta.(v2f), anim.duration)
+		case:
+		}
 	}
-
 }

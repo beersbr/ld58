@@ -25,6 +25,7 @@ tiles_clear :: proc(tiles: []Tile) {
 game_data_init :: proc(game_data: ^GameData) {
 	game_data.occupants = make([dynamic]Occupant, 0, NUM_TILES * 8)
 	pool_init(&game_data.plant_pool, cast(u32)NUM_TILES)
+	pool_init(&game_data.doodads_pool, 32)
 
 	game_data.total_ticks = 0
 	game_data.tick_rate = 2
@@ -183,6 +184,11 @@ game_draw :: proc(game_data: ^GameData) {
 		draw_sprite(plant_stage.sprite_id, plant.pos, {TILE_SIZE, TILE_SIZE})
 	}
 
+	for index in 0 ..< len(game_data.doodads_pool.used_list) {
+		doodad: ^Doodad = pool_get_at(&game_data.doodads_pool, cast(u32)index)
+		draw_sprite(doodad.sprite_id, doodad.pos, doodad.size)
+	}
+
 	for &occupant in game_data.occupants {
 		draw_sprite(occupant.sprite_id, occupant.pos, {TILE_SIZE, TILE_SIZE})
 	}
@@ -190,6 +196,7 @@ game_draw :: proc(game_data: ^GameData) {
 	for &button in GAME_UI_BUTTONS {
 		draw_button(&button)
 	}
+
 
 	current_tool: Tool = TOOLS[game_data.tool_id]
 	draw_sprite(current_tool.sprite_id, game_data.mouse_pos, {TILE_SIZE, TILE_SIZE})

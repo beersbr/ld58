@@ -36,6 +36,11 @@ Tool :: struct {
 	sprite_id: SpriteID,
 }
 
+Doodad :: struct {
+	pos:       v2f,
+	sprite_id: SpriteID,
+	size:      v2f,
+}
 
 BaseEntity :: struct {
 	born_at:    f64,
@@ -87,6 +92,7 @@ GameData :: struct {
 	tiles_now:      [NUM_TILES]Tile,
 	tiles_last:     [NUM_TILES]Tile,
 	occupants:      [dynamic]Occupant,
+	doodads_pool:   Pool(Doodad),
 	plant_pool:     Pool(Plant),
 	mouse_pos:      v2f,
 	mouse_pos_last: v2f,
