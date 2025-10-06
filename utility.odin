@@ -27,4 +27,6 @@ init_resources :: proc() {
 		image_data.tex = rl.LoadTexture(image_data.path)
 		image_data.size = v2i{image_data.tex.width, image_data.tex.height}
 	}
+
+	animation_system_init()
 }

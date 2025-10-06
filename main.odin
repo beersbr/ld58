@@ -35,14 +35,12 @@ game_data_init :: proc(game_data: ^GameData) {
 	tiles_clear(game_data.tiles_last[:])
 }
 
-
 game_update :: proc(game_data: ^GameData, dt: f32) {
 	mouse_pos: v2f = rl.GetMousePosition()
 
 	game_data.did_tick = false
 	game_data.mouse_pos_last = game_data.mouse_pos
 	game_data.mouse_pos = rl.GetMousePosition()
-
 
 	for button_id, idx in GameUIButtonID {
 		button: ^UIButton = &GAME_UI_BUTTONS[button_id]
@@ -69,10 +67,19 @@ game_update :: proc(game_data: ^GameData, dt: f32) {
 			if plant.growth_ticks > plant_stage.growth_ticks &&
 			   plant.current_stage < plant_data.num_stages {
 
-				plant.growth_ticks = 0
-
 				if plant.current_stage + 1 < plant_data.num_stages {
 					plant.current_stage += 1
+
+					plant.growth_ticks = 0
+					anim: ^Animation = anim_new()
+
+					anim.target = &plant.pos.y
+					anim.start = plant.pos.y
+					anim.end = plant.pos.y
+					anim.duration = 0.125
+					anim.fn_id = .Wobble
+
+					anim_start(anim)
 				}
 			}
 		}
@@ -118,7 +125,6 @@ game_update :: proc(game_data: ^GameData, dt: f32) {
 			}
 
 			if nbr_map in TILE_NBR_EVAL_FN {
-
 				TILE_NBR_EVAL_FN[nbr_map](&game_data.tiles_now[tile_iter_idx], nbr_map, game_data)
 			}
 		}
@@ -136,6 +142,8 @@ game_update :: proc(game_data: ^GameData, dt: f32) {
 			TOOL_ACTIONS[game_data.tool_id](game_data.tool_id, tile_index, game_data)
 		}
 	}
+
+	animation_system_update(dt)
 }
 
 
@@ -162,22 +170,6 @@ game_draw :: proc(game_data: ^GameData) {
 				)
 			}
 		}
-
-		// rl.DrawText(
-		// 	rl.TextFormat("%d", tile.index),
-		// 	coord_i.x * TILE_SIZE,
-		// 	coord_i.y * TILE_SIZE,
-		// 	10,
-		// 	rl.BLACK,
-		// )
-		// rl.DrawText(
-		// 	rl.TextFormat("%d,%d", coord_i.x, coord_i.y),
-		// 	coord_i.x * TILE_SIZE,
-		// 	coord_i.y * TILE_SIZE + 12,
-		// 	10,
-		// 	rl.BLACK,
-		// )
-
 	}
 
 	for index in 0 ..< queue.len(game_data.plant_pool.used_list) {
@@ -187,7 +179,6 @@ game_draw :: proc(game_data: ^GameData) {
 
 		draw_sprite(plant_stage.sprite_id, plant.pos, {TILE_SIZE, TILE_SIZE})
 	}
-
 
 	for &occupant in game_data.occupants {
 		draw_sprite(occupant.sprite_id, occupant.pos, {TILE_SIZE, TILE_SIZE})

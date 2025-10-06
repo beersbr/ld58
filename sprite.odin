@@ -58,7 +58,7 @@ IMAGE_REFS: [ImageID]ImageRef = {
 	.CURSOR_ATLAS = {path = "./resources/_fullset_cursors.png"},
 	.BACKGROUND_RIGHT = {path = "./resources/background_right.png"},
 	.CURSOR_COLOR_ATLAS = {path = "./resources/cursors.png"},
-	.PARTICLES_ATLAS = {path = "./resources/flora_particle.png.png"},
+	.PARTICLES_ATLAS = {path = "./resources/flora_particle.png"},
 }
 
 
