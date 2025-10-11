@@ -25,8 +25,8 @@ TOOL_ACTIONS: [ToolID]ToolAction = {
 			return
 		}
 
-		ok, doodad := pool_acquire(&game_data.doodads_pool)
-		assert(ok, "Could not acquire doodad")
+		// ok, doodad := pool_acquire(&game_data.doodads_pool)
+		// assert(ok, "Could not acquire doodad")
 
 		plant_data := PLANT_DATA[tile.plant.plant_type_id]
 		// stage: PlantDataStage = plant_data.stages[tile.plant.current_stage]
